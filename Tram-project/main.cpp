@@ -1,114 +1,134 @@
-#include <cstdlib>
 #include <iostream>
-#include <SFML/Graphics.hpp>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <chrono>
+#include <thread>
 
-#include "Tram-project.hpp"
+class Rame {
+private:
+    int numero;
+    double position;
+    double vitesse;
+    const double vitesseCroisiere = 30.0;
+    const int capaciteMaximale = 300;  // Capacité maximale de la rame
+    int nombrePassagers;
 
-using namespace std;
-using namespace sf;
+public:
+    Rame(int numero) : numero(numero), position(0.0), vitesse(0.0), nombrePassagers(0) {}
 
-#ifdef _MSC_VER 
-#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
-#define _PATH_IMG_ "C:/Program Files/SFML/img/"
-#else
-#define _PATH_IMG_ "../img/"
-#endif
+    void quitterStation() {
+        accelerer(5.0);
+        std::cout << "La rame " << numero << " quitte la station. Nouvelle vitesse : " << vitesse << std::endl;
+    }
 
-const std::string path_image(_PATH_IMG_);
+    void parcourirLigne() {
+        maintenirVitesseCroisiere();
+        std::cout << "La rame " << numero << " parcourt la ligne a vitesse de croisiere : " << vitesse << std::endl;
+    }
+
+    void arreterAStation() {
+        decelerer(5.0);
+        std::cout << "La rame " << numero << " ralentit en approchant de la station : " << vitesse << std::endl;
+        vitesse = 0.0;
+        std::cout << "La rame " << numero << " est a l'arret a la station." << std::endl;
+        std::cout << "Capacite maximale de la rame : " << capaciteMaximale << std::endl;
+        std::cout << "Disponibilite dans la rame : " << getDisponibilite() << std::endl;
+        std::cout << std::endl;
+    }
+
+    void gererPassagers(int passagersQuai) {
+        int passagersSortent = rand() % (nombrePassagers + 1);
+
+        if (passagersSortent > nombrePassagers) {
+            passagersSortent = nombrePassagers;
+        }
+
+        nombrePassagers -= passagersSortent;
+
+        int passagersEntrent = std::min(capaciteMaximale - nombrePassagers, passagersQuai);
+
+        nombrePassagers += passagersEntrent;
+
+        std::cout << "Passagers entrant : " << passagersEntrent << ", Passagers sortant : " << passagersSortent << std::endl;
+        std::cout << "La rame " << numero << " - Nombre de passagers a bord : " << nombrePassagers << std::endl;
+    }
+
+    double getPosition() const {
+        return position;
+    }
+
+    int getCapaciteMaximale() const {
+        return capaciteMaximale;
+    }
+
+    int getDisponibilite() const {
+        return capaciteMaximale - nombrePassagers;
+    }
+
+private:
+    void accelerer(double acceleration) {
+        vitesse += acceleration;
+    }
+
+    void decelerer(double deceleration) {
+        vitesse -= deceleration;
+    }
+
+    void maintenirVitesseCroisiere() {
+        vitesse = vitesseCroisiere;
+    }
+};
+
+class Station {
+public:
+    std::string nom;
+
+    Station(const std::string& nom) : nom(nom) {}
+
+    int gererRame() {
+        return rand() % 160; // Retourne un nombre aléatoire de passagers sur le quai
+    }
+};
 
 int main() {
-	// Fenêtre
-	const Vector2u WINDOW_SIZE(800, 600);
+    srand(static_cast<unsigned int>(time(0)));
 
-	RenderWindow app(VideoMode(WINDOW_SIZE.x, WINDOW_SIZE.y, 32), "My Camera");
+    std::vector<Station> stations = {
+        Station("Saint-Philibert"),
+        Station("Bourg"),
+        Station("Maison des Enfants"),
+        Station("Mitterie"),
+        Station("Pont Supérieur"),
+        Station("Lomme - Lambersart - Arthur-Notebart"),
+        Station("Canteleu"),
+        Station("Bois Blancs"),
+        Station("Port de Lille"),
+        Station("Cormontaigne"),
+		Station("Montebello"),
+		Station("Porte des Postes"),
+		Station("Porte d'Arras"),
+		Station("Porte de Douai"),
+		Station("Porte de Valenciennes"),
+		Station("Lille Grand Palais"),
+		Station("Mairie de Lille"),
+		Station("Gare Lille Flandres")
+    };
 
-	// Frames Per Second (FPS)
-	app.setFramerateLimit(60); // limite la fenêtre à 60 images par seconde
+    Rame rame(1);
 
-	// Fond d'écran
-	Texture backgroundImage, carImage, runnerImage;
-	Sprite backgroundSprite, carSprite, runnerSprite;
+    // La rame effectue un trajet entre les stations pendant 10 itérations
+    for (size_t i = 0; i < stations.size(); ++i) {
+        int passagersQuai = stations[i].gererRame();
+        std::cout << "Station " << stations[i].nom << " - Passagers sur le quai : " << passagersQuai << std::endl;
 
-	if (!backgroundImage.loadFromFile(path_image + "background.png") ||
-		!carImage.loadFromFile(path_image + "metro.png")) {
-		cerr << "Erreur pendant le chargement des images" << endl;
-		return EXIT_FAILURE; // On ferme le programme
-	}
+        rame.gererPassagers(passagersQuai);
+        rame.quitterStation();
+        rame.parcourirLigne();
+        rame.arreterAStation();
 
-	backgroundSprite.setTexture(backgroundImage);
-	carSprite.setTexture(carImage);
-	carSprite.setPosition(sf::Vector2f(20, 34));
-	carSprite.setScale(sf::Vector2f(0.5, 0.5));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
 
-	sf::IntRect rect;
-
-	rect.top = 0;
-	rect.left = 0;
-
-	rect.width = 102;
-	rect.height = 115;
-
-	constexpr int shift_x = 50;
-	constexpr int shift_y = 10;
-
-	runnerSprite.setTexture(runnerImage);
-	runnerSprite.setTextureRect(rect);
-	runnerSprite.setScale(sf::Vector2f(0.3f, 0.3f));
-
-	Car car(790, 1215, 0, 0);
-
-	Vector2f center(car.getX(), car.getY());
-
-	Vector2f halfSize(WINDOW_SIZE.x / 2.f, WINDOW_SIZE.y / 2.f);
-
-	View view(center, halfSize);
-
-	app.setView(view);
-
-	while (app.isOpen()) // Boucle principale
-	{
-		Event event;
-		while (app.pollEvent(event)) // Boucle des évènements de la partie pause
-		{
-			if ((event.type == Event::KeyPressed && event.key.code == sf::Keyboard::Escape) || event.type == Event::Closed)
-			{
-				app.close();
-			}
-		}
-
-		car.move();
-		view.setCenter(car.getX(), car.getY());
-
-		app.setView(view);
-
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
-			car.turnLeft();
-			carSprite.setRotation(car.getAngle());
-		}
-
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
-			car.turnRight();
-			carSprite.setRotation(car.getAngle());
-		}
-
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-			car.speedUp();
-		}
-		else
-		{
-			car.speedDown();
-		}
-
-		// Affichages
-		app.clear();
-		app.draw(backgroundSprite);
-
-		carSprite.setPosition(car.getX(), car.getY());
-
-		app.draw(carSprite);
-
-		app.display();
-	}
-
-	return EXIT_SUCCESS;
+    return 0;
 }
