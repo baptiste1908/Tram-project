@@ -4,6 +4,7 @@
 #include <ctime>
 #include <chrono>
 #include <thread>
+#include <SFML/Graphics.hpp>
 
 class Rame {
 private:
@@ -66,6 +67,10 @@ public:
         return capaciteMaximale - nombrePassagers;
     }
 
+    double getVitesse() const {
+        return vitesse;
+    }
+
 private:
     void accelerer(double acceleration) {
         vitesse += acceleration;
@@ -105,17 +110,35 @@ int main() {
         Station("Bois Blancs"),
         Station("Port de Lille"),
         Station("Cormontaigne"),
-		Station("Montebello"),
-		Station("Porte des Postes"),
-		Station("Porte d'Arras"),
-		Station("Porte de Douai"),
-		Station("Porte de Valenciennes"),
-		Station("Lille Grand Palais"),
-		Station("Mairie de Lille"),
-		Station("Gare Lille Flandres")
+        Station("Montebello"),
+        Station("Porte des Postes"),
+        Station("Porte d'Arras"),
+        Station("Porte de Douai"),
+        Station("Porte de Valenciennes"),
+        Station("Lille Grand Palais"),
+        Station("Mairie de Lille"),
+        Station("Gare Lille Flandres")
     };
 
     Rame rame(1);
+
+    // Fenêtre SFML
+    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Window");
+
+    // Police pour le texte
+
+    sf::Font font;
+	if (!font.loadFromFile("C:/Program Files/SFML/font/arial.ttf")) {
+        std::cerr << "Erreur lors du chargement de la police" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+
+    // Texte pour afficher les informations de la rame
+    sf::Text text;
+    text.setFont(font);
+    text.setCharacterSize(20);
+    text.setPosition(10, 10);
 
     // La rame effectue un trajet entre les stations pendant 10 itérations
     for (size_t i = 0; i < stations.size(); ++i) {
@@ -126,6 +149,22 @@ int main() {
         rame.quitterStation();
         rame.parcourirLigne();
         rame.arreterAStation();
+
+        // Mettez à jour le texte avec les informations de la rame
+        text.setString(
+            "\nPosition : " + std::to_string(rame.getPosition()) +
+            "\nVitesse : " + std::to_string(rame.getVitesse()) +
+            "\nCapacite maximale : " + std::to_string(rame.getCapaciteMaximale()) +
+            "\nDisponibilite : " + std::to_string(rame.getDisponibilite()));
+
+        // Effacez le contenu de la fenêtre
+        window.clear();
+
+        // Dessinez le texte sur la fenêtre
+        window.draw(text);
+
+        // Affichez le contenu de la fenêtre
+        window.display();
 
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
