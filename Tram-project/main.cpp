@@ -14,9 +14,11 @@ private:
     const double vitesseCroisiere = 30.0;
     const int capaciteMaximale = 300;  // Capacité maximale de la rame
     int nombrePassagers;
+    int passagersEntrent;
+    int passagersSortent;
 
 public:
-    Rame(int numero) : numero(numero), position(0.0), vitesse(0.0), nombrePassagers(0) {}
+    Rame(int numero) : numero(numero), position(0.0), vitesse(0.0), nombrePassagers(0), passagersEntrent(0), passagersSortent(0) {}
 
     void quitterStation() {
         accelerer(5.0);
@@ -25,6 +27,7 @@ public:
 
     void parcourirLigne() {
         maintenirVitesseCroisiere();
+        position += vitesse;  // Mettez à jour la position en fonction de la vitesse
         std::cout << "La rame " << numero << " parcourt la ligne a vitesse de croisiere : " << vitesse << std::endl;
     }
 
@@ -39,7 +42,7 @@ public:
     }
 
     void gererPassagers(int passagersQuai) {
-        int passagersSortent = rand() % (nombrePassagers + 1);
+        passagersSortent = rand() % (nombrePassagers + 1);
 
         if (passagersSortent > nombrePassagers) {
             passagersSortent = nombrePassagers;
@@ -47,7 +50,7 @@ public:
 
         nombrePassagers -= passagersSortent;
 
-        int passagersEntrent = std::min(capaciteMaximale - nombrePassagers, passagersQuai);
+        passagersEntrent = std::min(capaciteMaximale - nombrePassagers, passagersQuai);
 
         nombrePassagers += passagersEntrent;
 
@@ -69,6 +72,17 @@ public:
 
     double getVitesse() const {
         return vitesse;
+    }
+
+    int getPassagersEntrent() const {
+        return passagersEntrent;
+    }
+    int getPassagersSortent() const {
+        return passagersSortent;
+    }
+
+    int getNombrePassagers() const {
+        return nombrePassagers;
     }
 
 private:
@@ -126,19 +140,31 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Window");
 
     // Police pour le texte
-
     sf::Font font;
-	if (!font.loadFromFile("C:/Program Files/SFML/font/arial.ttf")) {
-        std::cerr << "Erreur lors du chargement de la police" << std::endl;
+    if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+        std::cerr << "Erreur lors du chargement de la police" << std::endl; // Pour voir si on a une erreur lors du chargement
         return EXIT_FAILURE;
     }
 
-
     // Texte pour afficher les informations de la rame
-    sf::Text text;
-    text.setFont(font);
-    text.setCharacterSize(20);
-    text.setPosition(10, 10);
+    sf::Text positionText, vitesseText, capaciteText, disponibiliteText, passagersText;
+    positionText.setFont(font);
+    vitesseText.setFont(font);
+    capaciteText.setFont(font);
+    disponibiliteText.setFont(font);
+    passagersText.setFont(font);
+
+    positionText.setCharacterSize(20);
+    vitesseText.setCharacterSize(20);
+    capaciteText.setCharacterSize(20);
+    disponibiliteText.setCharacterSize(20);
+    passagersText.setCharacterSize(20);
+
+    positionText.setPosition(10, 10);
+    vitesseText.setPosition(10, 40);
+    capaciteText.setPosition(10, 70);
+    disponibiliteText.setPosition(10, 100);
+    passagersText.setPosition(10, 130);
 
     // La rame effectue un trajet entre les stations pendant 10 itérations
     for (size_t i = 0; i < stations.size(); ++i) {
@@ -147,21 +173,31 @@ int main() {
 
         rame.gererPassagers(passagersQuai);
         rame.quitterStation();
+
+        // Ajoutez cet appel pour mettre à jour la position après avoir quitté la station
         rame.parcourirLigne();
+
         rame.arreterAStation();
 
-        // Mettez à jour le texte avec les informations de la rame
-        text.setString(
-            "\nPosition : " + std::to_string(rame.getPosition()) +
-            "\nVitesse : " + std::to_string(rame.getVitesse()) +
-            "\nCapacite maximale : " + std::to_string(rame.getCapaciteMaximale()) +
-            "\nDisponibilite : " + std::to_string(rame.getDisponibilite()));
+        // Mettez à jour les textes avec les informations de la rame
+        positionText.setString("Station : " + stations[i].nom);
+        vitesseText.setString("Vitesse : " + std::to_string(rame.getVitesse()));
+        capaciteText.setString("Capacite maximale : " + std::to_string(rame.getCapaciteMaximale()));
+        disponibiliteText.setString("Disponibilite : " + std::to_string(rame.getDisponibilite()));
+        passagersText.setString(
+            "Passagers entrant : " + std::to_string(rame.getPassagersEntrent()) +
+            "\nPassagers sortant : " + std::to_string(rame.getPassagersSortent()) +
+            "\nNombre de passagers a bord : " + std::to_string(rame.getNombrePassagers()));
 
         // Effacez le contenu de la fenêtre
         window.clear();
 
-        // Dessinez le texte sur la fenêtre
-        window.draw(text);
+        // Dessinez les textes sur la fenêtre
+        window.draw(positionText);
+        window.draw(vitesseText);
+        window.draw(capaciteText);
+        window.draw(disponibiliteText);
+        window.draw(passagersText);
 
         // Affichez le contenu de la fenêtre
         window.display();
