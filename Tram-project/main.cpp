@@ -1,280 +1,16 @@
-#include <iostream>
-#include <vector>
-#include <cstdlib>
-#include <ctime>
-#include <thread>
-#include <chrono>
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-#include <mutex>
-#include <sstream>
-#include <map>
-#include <random>
+#include "metro.hpp"
+#include "superviseur.hpp"
+#include "station.hpp"
 
-//constexpr const char* _PATH_IMG_ = "../../../../../../../../images/";
-constexpr const char* _PATH_IMG_ = "./images/";
+#include "bibliotheque.hpp"
+
+constexpr const char* _PATH_IMG_ = "C:/Program Files/SFML/img/";
 
 const double EPSILON = 1e-5;
 const double SEUIL_DECÉLÉRATION = 50.0;
 
-class Metro {
-    friend class Superviseur; // Permet à Superviseur d'accéder aux membres privés de Metro
-    friend class Station;
-    friend void simulerMetro(Metro& metro, const std::vector<Station>& stations, bool avecDelai, Superviseur& superviseur, sf::Time& tempsTotalArrete);
 
-    friend size_t getProchaineStationIndex(const Metro& metro, const std::vector<Station>& stations);
-    friend void afficherMetro(sf::RenderWindow& window, const Metro& metro, const Metro& deuxiemeMetro, const std::vector<Station>& stations, bool afficherDeuxiemeMetro, Superviseur& superviseur);
-    friend double getProchaineStationPosition(const Metro& metro, const std::vector<Station>& stations);
 
-private:
-    double position;
-    double distanceEntreStations;
-    double vitesse = 0;
-    const double vitesseCroisiere = 2.0;
-    const double vitesseArret = 0.0;
-    const double dureeArret = 5.0;
-    const int capaciteMaximale = 200;
-    int nombrePassagers;
-    sf::Clock stationClock;
-    bool enArret;
-    int passagersEntrants = 0;
-    int passagersSortants = 0;
-
-    bool directionPositive;
-    double facteurVariabilite;
-    bool arretUrgence = false;
-    bool estEnProcessusDeDeceleration = false;
-    double positionRamePrecedente;
-
-    bool activerDistanceSecurite = false;
-    int id = rand(); // Membre pour stocker l'ID
-
-public:
-    Metro() : position(0.0), vitesse(0.0), nombrePassagers(0), enArret(false), distanceEntreStations(0.0), directionPositive(true), facteurVariabilite(static_cast<double>(rand()) / RAND_MAX), positionRamePrecedente(0.0) {
-        // Reste du constructeur
-    }
-
-
-    // Méthode pour récupérer l'ID du métro
-    int getID() const {
-        return id;
-    }
-
-
-    bool estALaStation() const {
-        // Un métro est considéré comme étant à une station si sa vitesse est nulle (arrêté)
-        return enArret;
-    }
-
-
-    void initialiser(double distanceEntreStations) {
-        this->distanceEntreStations = distanceEntreStations;
-    }
-
-    void quitterStation() {
-        accelerer(vitesseCroisiere);
-        enArret = false;
-    }
-
-    void parcourirLigne(sf::Time elapsedTime, const std::vector<Station>& stations, double positionPrecedente, Superviseur& superviseur)
-    {
-        this->positionRamePrecedente = positionPrecedente;
-
-        double distanceSecurite = 50.0; // Distance de sécurité en mètres
-        double distanceAvecPrecedente = std::abs(position - positionRamePrecedente);
-
-        if (!enArret) {
-            double deplacement = (vitesse * elapsedTime.asSeconds()) / 4.0;
-            bool doitSArreter = false;
-
-            double prochaineStationPos = getProchaineStationPosition(*this, stations);
-            double distanceProchaineStation = std::abs(prochaineStationPos - position);
-
-            // Gérer la décélération avant d'arriver à la station
-            if (distanceProchaineStation > 120 && !estEnProcessusDeDeceleration) {
-                vitesse = 1.4;
-                estEnProcessusDeDeceleration = true;
-                if (distanceProchaineStation > 140) {
-                    vitesse = 0.9;
-                    if (distanceProchaineStation > 170) {
-                        vitesse = 0.5;
-                    }
-                }
-            }
-            estEnProcessusDeDeceleration = false;
-
-            // Activer la distance de sécurité après 20 secondes
-            if (activerDistanceSecurite && distanceAvecPrecedente < distanceSecurite) {
-                vitesse = std::max(0.0, vitesse - 0.5); // Ralentir si nécessaire
-            }
-
-            if (activerDistanceSecurite && distanceAvecPrecedente < distanceSecurite) {
-                // Ralentir si nécessaire
-                vitesse = std::max(0.0, vitesse - 0.5);
-            }
-
-            // Continuer avec la logique de déplacement normale
-            if (directionPositive) {
-                position += deplacement;
-                if (position >= distanceEntreStations) {
-                    position = distanceEntreStations;
-                    doitSArreter = true;
-                }
-            }
-            else {
-                position -= deplacement;
-                if (position <= 0.0) {
-                    position = 0.0;
-                    doitSArreter = true;
-                }
-            }
-
-            // Gestion de l'arrêt à la station
-            if (doitSArreter && !enArret) {
-                arreterAStation();
-            }
-        }
-    }
-
-
-
-
-
-    void arreterAStation() {
-        if (!enArret) {
-            vitesse = 0;
-            enArret = true;
-            stationClock.restart();
-
-            // Calcul de la durée d'arrêt ajustée
-            double tempsParPassager = 0.1;
-            double tempsArretAjuste = dureeArret + (passagersEntrants + passagersSortants) * tempsParPassager;
-
-            // Attendre le temps d'arrêt ajusté (simulation)
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(tempsArretAjuste * 1000)));
-
-            std::cout << "Temps passé à la station : " << tempsArretAjuste << " secondes" << std::endl;
-        }
-    }
-
-
-
-
-
-
-
-
-
-    void gererPassagers(int passagersQuai) {
-        // Facteur de variabilité basé sur l'ID du métro et une valeur aléatoire
-        int variabilite = (rand() % 20 + 1) * (id % 15);
-
-        // Calcul du nombre de passagers sortants avec variabilité
-        passagersSortants = std::min(nombrePassagers, rand() % (nombrePassagers + 1) + variabilite / 20);
-
-        // Calcul du nombre de passagers entrants avec variabilité
-        passagersEntrants = std::min(capaciteMaximale - nombrePassagers, passagersQuai) + variabilite / 25;
-
-        // Mise à jour du nombre de passagers à bord
-        nombrePassagers += passagersEntrants - passagersSortants;
-
-        // Assurer que le nombre de passagers reste dans les limites
-        if (nombrePassagers > capaciteMaximale) nombrePassagers = capaciteMaximale;
-        if (nombrePassagers < 0) nombrePassagers = 0;
-    }
-
-
-
-
-    void arretTotal() {
-        enArret = true;
-        vitesse = 0.0;
-        arretUrgence = true; // Indicateur d'arrêt d'urgence activé
-    }
-
-    void reprendreAprèsArretUrgence() {
-        if (arretUrgence) {
-            enArret = false;
-            accelerer(vitesseCroisiere);
-            arretUrgence = false;  // Réinitialisation de l'état d'urgence
-        }
-    }
-
-    int getPassagersEntrants() const {
-        return passagersEntrants;
-    }
-
-    int getPassagersSortants() const {
-        return passagersSortants;
-    }
-
-    double getVitesse() const {
-        return vitesse;
-    }
-
-    double getPosition() const {
-        return position;
-    }
-
-    int getCapaciteMaximale() const {
-        return capaciteMaximale;
-    }
-
-    int getNombrePassagers() const {
-        return nombrePassagers;
-    }
-
-    double getDureeArret() const {
-        return dureeArret;
-    }
-
-    void accelerer(double acceleration) {
-        vitesse += acceleration;
-    }
-
-
-
-
-
-    double fonctionTransition(double t) const {
-        return 2 * t * t * t - 3 * t * t + 1;
-    }
-};
-
-class Station {
-    friend class Metro;
-    friend class Superviseur;
-    friend size_t getProchaineStationIndex(const Metro& metro, const std::vector<Station>& stations);
-    friend void afficherMetro(sf::RenderWindow& window, const Metro& metro, const Metro& deuxiemeMetro, const std::vector<Station>& stations, bool afficherDeuxiemeMetro, Superviseur& superviseur);
-    friend void simulerMetro(Metro& metro, const std::vector<Station>& stations, bool avecDelai, Superviseur& superviseur, sf::Time& tempsTotalArrete);
-    friend double getProchaineStationPosition(const Metro& metro, const std::vector<Station>& stations);
-
-private:
-    std::string nom;
-    double position;
-    bool metroPresent;
-
-public:
-    Station(const std::string& nom, double position) : nom(nom), position(position) {}
-
-    void signalerArriveeMetro() {
-        metroPresent = true;
-    }
-
-    // Méthode pour signaler le départ d'un métro
-    void signalerDepartMetro() {
-        metroPresent = false;
-    }
-
-    bool estMetroPresent() const {
-        return metroPresent;
-    }
-    int gererPassagers() const {
-        return rand() % 150;
-    }
-
-
-};
 
 
 size_t getProchaineStationIndex(const Metro& metro, const std::vector<Station>& stations) {
@@ -313,134 +49,6 @@ size_t getProchaineStationIndex(const Metro& metro, const std::vector<Station>& 
 
     return stationIndex;
 }
-
-class Superviseur {
-    friend class Metro;
-    friend class Station;
-    friend size_t getProchaineStationIndex(const Metro& metro, const std::vector<Station>& stations);
-    friend void afficherMetro(sf::RenderWindow& window, const Metro& metro, const Metro& deuxiemeMetro, const std::vector<Station>& stations, bool afficherDeuxiemeMetro, Superviseur& superviseur);
-    friend void simulerMetro(Metro& metro, const std::vector<Station>& stations, bool avecDelai, Superviseur& superviseur, sf::Time& tempsTotalArrete);
-
-public:
-    Superviseur(Metro& metro1, Metro& metro2, sf::RenderWindow& window)
-        : m_metro1(metro1), m_metro2(metro2), m_window(window), arretUrgence(false) {
-        demarrageTime = std::chrono::steady_clock::now();
-    }
-
-    void verifierEtReagir(sf::Event event, sf::Clock& clock, sf::Time& tempsTotalArrete) {
-        if (event.type == sf::Event::MouseButtonPressed) {
-            if (event.mouseButton.button == sf::Mouse::Left) {
-                sf::Vector2i mousePos = sf::Mouse::getPosition(m_window);
-                if (boutonArret.getGlobalBounds().contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
-                    std::cout << "Bouton Stop cliqué" << std::endl;
-
-                    toggleArretUrgence(clock, tempsTotalArrete);
-                }
-            }
-        }
-    }
-
-    void toggleArretUrgence(sf::Clock& clock, sf::Time& tempsTotalArrete) {
-        arretUrgence = !arretUrgence;
-        if (arretUrgence) {
-            tempsTotalArrete += clock.getElapsedTime();
-            m_metro1.arretTotal();
-            m_metro2.arretTotal();
-        }
-        else {
-            m_metro1.quitterStation();
-            m_metro2.quitterStation();
-        }
-    }
-
-    void Superviseur::mettreAJourLesPositions(Metro& metro1, Metro& metro2, sf::Time elapsedTime, const std::vector<Station>& stations, bool simulationDebut) {
-        double positionMetro1 = metro1.getPosition();
-        double positionMetro2 = metro2.getPosition();
-
-        metro1.parcourirLigne(elapsedTime, stations, positionMetro2, *this); // Passer une référence à ce superviseur
-        metro2.parcourirLigne(elapsedTime, stations, positionMetro1, *this); // Idem ici
-    }
-
-
-    bool getArretUrgence() const { return arretUrgence; }
-
-    // Méthode pour obtenir l'ID du premier métro
-    int getIdMetro1() const {
-        return m_metro1.getID();
-    }
-
-    // Méthode pour obtenir l'ID du deuxième métro
-    int getIdMetro2() const {
-        return m_metro2.getID();
-    }
-
-    // Méthode pour obtenir la position du premier métro
-    double getPositionMetro1() const {
-        return m_metro1.getPosition();
-    }
-
-    // Méthode pour obtenir la position du deuxième métro
-    double getPositionMetro2() const {
-        return m_metro2.getPosition();
-    }
-    void arretDurgence() {
-        m_metro1.arretTotal();
-        m_metro2.arretTotal();
-        arretUrgence = true;
-        // Ajoutez ici d'autres actions pour l'arrêt d'urgence
-    }
-
-    void verifierDistanceSecurite(Metro& metro1, Metro& metro2) {
-        auto elapsed = demarrageClock.getElapsedTime().asSeconds();
-
-        // Activer la distance de sécurité après 20 secondes
-        if (elapsed > 20 && !activerDistanceSecurite) {
-            activerDistanceSecurite = true;
-            std::cout << "Activation de la distance de sécurité après 20 secondes." << std::endl;
-        }
-
-        if (!activerDistanceSecurite) {
-            return; // Si la distance de sécurité n'est pas activée, rien de plus à faire
-        }
-
-        double distanceSecurite = 50.0; // Distance de sécurité en mètres
-        double distanceActuelle = std::abs(metro1.getPosition() - metro2.getPosition());
-
-        // Vérifier si les deux métros se déplacent dans la même direction
-        bool memeDirection = metro1.directionPositive == metro2.directionPositive;
-
-        // Vérifier la distance et déclencher un arrêt d'urgence si nécessaire
-        if (memeDirection && distanceActuelle < distanceSecurite && !arretUrgence) {
-            std::cout << "Arrêt d'urgence déclenché en raison d'une proximité trop proche." << std::endl;
-
-            arretDurgence();
-        }
-
-    }
-
-
-
-    // Assurez-vous que ces membres sont accessibles là où ils sont nécessaires
-    sf::RectangleShape boutonArret;
-    sf::Text texteBouton;
-    sf::Time tempsArrete;
-    sf::Clock demarrageClock;
-
-
-
-
-private:
-    Metro& m_metro1;
-    Metro& m_metro2;
-    sf::RenderWindow& m_window;
-    bool enArret = false;
-    bool arretUrgence;
-    bool activerDistanceSecurite = false;
-    std::chrono::steady_clock::time_point demarrageTime;
-
-
-
-};
 
 
 void drawTextWithBackground(sf::RenderWindow& window, sf::Text& text, sf::FloatRect& bounds, sf::Color topColor, sf::Color bottomColor) {
@@ -680,7 +288,7 @@ void simulerMetro(Metro& metro, const std::vector<Station>& stations, bool avecD
     bool simulationDebut = true;
 
     while (true) {
-        //superviseur.verifierDistanceSecurite(metro1, metro2);
+ 
         if (!superviseur.getArretUrgence()) {
             sf::Time tempsTotalEcoulé = clock.getElapsedTime() - tempsTotalArrete;
 
@@ -693,11 +301,12 @@ void simulerMetro(Metro& metro, const std::vector<Station>& stations, bool avecD
                 sf::Time tempsEcoulé = clock.getElapsedTime();
 
 
-                metro.parcourirLigne(tempsEcoulé, stations, stationIndex, superviseur);
+                metro.parcourirLigne(tempsEcoulé, stations, static_cast<double>(stationIndex), superviseur);
 
                 double nextStationPos = stations[stationIndex].position;
                 if ((aller && metro.getPosition() >= nextStationPos) ||
                     (!aller && metro.getPosition() <= nextStationPos)) {
+				
                     metro.arreterAStation();
                     if ((stationIndex == stations.size() - 1 && aller) ||
                         (stationIndex == 0 && !aller)) {
@@ -743,12 +352,6 @@ double getProchaineStationPosition(const Metro& metro, const std::vector<Station
     size_t stationIndex = getProchaineStationIndex(metro, stations);
     return stations[stationIndex].position;
 }
-
-
-
-
-
-
 
 
 
@@ -816,7 +419,7 @@ int main() {
         sf::Time elapsedTime = clock.restart(); // Récupère le temps écoulé depuis le dernier appel
 
         for (auto& station : stations) {
-            
+
             size_t stationIndexMetro = getProchaineStationIndex(metro, stations);
             size_t stationIndexDeuxiemeMetro = getProchaineStationIndex(deuxiemeMetro, stations);
 

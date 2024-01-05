@@ -9,9 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 find_package(SFML 2.5 COMPONENTS graphics window system REQUIRED)
 
 # Ajouter les fichiers sources de votre projet
-add_executable(TramProject main.cpp superviseur.hpp metro.hpp) # Listez tous vos fichiers .cpp ici
+add_executable(TramProject main.cpp  "metro.cpp"  "superviseur.cpp" "station.cpp" ) # Listez tous vos fic "station.cpp"hiers .cpp ici
 
 # Lier votre projet avec les bibliothèques de SFML
 target_link_libraries(TramProject sfml-graphics sfml-window sfml-system)
 
-#file(COPY ${CMAKE_SOURCE_DIR}/images/ DESTINATION ${CMAKE_BINARY_DIR}/images/)
