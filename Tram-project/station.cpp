@@ -28,5 +28,5 @@ bool Station::estMetroPresent() const {
 //Cette méthode est implémenter pour simuler la gestion des passagers sur le quai
 int Station::gererPassagers() const {
     //On génère un nombre aléatoire de passagers
-    return rand() % 150; //On retourne un nombre aléatoire de passagers entre 0 et 149
+    return rand() % 150; 
 }

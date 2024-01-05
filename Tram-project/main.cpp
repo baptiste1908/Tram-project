@@ -8,7 +8,6 @@
 
 //On définit aussi des constantes dont on va avoir besoin plus tard 
 const double EPSILON = 1e-5;
-const double SEUIL_DECÉLÉRATION = 50.0;
 
 
 

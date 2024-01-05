@@ -8,7 +8,7 @@
 //On définit deux constantes globales:
 
 const double EPSILON = 1e-5; //On utilise cette constante pour les comparaisons car c'est une toute petite valeur
-const double SEUIL_DECÉLÉRATION = 50.0; //On utilise cette constante pour la distance à partir de laquelle le métro commence à décélérer avant d'atteindre une station
+
 
 //Constructeur de la classe Metro
 Metro::Metro() //On initialise les membres de la classe incluant la position, les vitesses, la capacité maximale, ...
@@ -100,6 +100,9 @@ void Metro::parcourirLigne(sf::Time elapsedTime, const std::vector<Station>& sta
     }
 }
 
+
+
+
 //Cette méthode est initialiser pour faire arreter le métro à une station
 void Metro::arreterAStation() {
     if (!enArret) { //On vérifie si le métro n'est pas déja à l'arret
@@ -118,6 +121,10 @@ void Metro::arreterAStation() {
         std::cout << "Temps passé à la station : " << tempsArretAjuste << " secondes" << std::endl;
     }
 }
+
+
+
+
 
 //Cette méthode permet de gérer les passagers qui montent et qui descendent
 void Metro::gererPassagers(int passagersQuai) {
@@ -138,6 +145,8 @@ void Metro::gererPassagers(int passagersQuai) {
     if (nombrePassagers > capaciteMaximale) nombrePassagers = capaciteMaximale;
     if (nombrePassagers < 0) nombrePassagers = 0;
 }
+
+
 
 //Méthode pour l'arret total du métro
 void Metro::arretTotal() {
