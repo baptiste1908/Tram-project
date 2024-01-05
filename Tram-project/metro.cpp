@@ -4,11 +4,14 @@
 
 #include "bibliotheque.hpp"
 
-const double EPSILON = 1e-5;
-const double SEUIL_DECÉLÉRATION = 50.0;
 
-// Constructeur de la classe Metro
-Metro::Metro()
+//On définit deux constantes globales:
+
+const double EPSILON = 1e-5; //On utilise cette constante pour les comparaisons car c'est une toute petite valeur
+const double SEUIL_DECÉLÉRATION = 50.0; //On utilise cette constante pour la distance à partir de laquelle le métro commence à décélérer avant d'atteindre une station
+
+//Constructeur de la classe Metro
+Metro::Metro() //On initialise les membres de la classe incluant la position, les vitesses, la capacité maximale, ...
     : position(0.0), distanceEntreStations(0.0), vitesse(0.0),
     vitesseCroisiere(2.0), vitesseArret(0.0), dureeArret(5.0),
     capaciteMaximale(200), nombrePassagers(0), enArret(false),
@@ -16,53 +19,68 @@ Metro::Metro()
     positionRamePrecedente(0.0), activerDistanceSecurite(false), id(rand()) {
 }
 
-// Méthode pour récupérer l'ID du métro
+//On implémente une méthode pour récupérer l'ID du métro
 int Metro::getID() const {
     return id;
 }
 
-// Vérifier si le métro est à une station
+//On cherche à vérifier si le métro est à une station
 bool Metro::estALaStation() const {
     return enArret;
 }
 
-// Initialiser le métro avec la distance entre les stations
+//Cette méthode initialise la distance entre les stations pour le métro
 void Metro::initialiser(double distanceEntreStations) {
     this->distanceEntreStations = distanceEntreStations;
 }
 
-// Quitter la station
+//On initialise cette méthode pour faire partie le métro de la station actuelle en accélérant à la vitesse de croisière
 void Metro::quitterStation() {
     accelerer(vitesseCroisiere);
     enArret = false;
 }
 
-// Parcourir la ligne de métro
-void Metro::parcourirLigne(sf::Time elapsedTime, const std::vector<Station>& stations, double positionPrecedente, Superviseur& superviseur) {
-    this->positionRamePrecedente = positionPrecedente;
-    double distanceSecurite = 50.0; // Distance de sécurité en mètres
-    double distanceAvecPrecedente = std::abs(position - positionRamePrecedente);
+//Cette méthode nous permet de parcourir la ligne de métro
+void Metro::parcourirLigne(sf::Time elapsedTime, const std::vector<Station>& stations, double positionPrecedente, Superviseur& superviseur)
+{
+    this->positionRamePrecedente = positionPrecedente; //On initialise la variable 'positionRamePrecedente' avec la position précédente du métro sur la ligne
 
-    if (!enArret) {
-        double deplacement = (vitesse * elapsedTime.asSeconds()) / 4.0;
-        bool doitSArreter = false;
+    double distanceSecurite = 50.0; //On définit une distance de sécurité
+    double distanceAvecPrecedente = std::abs(position - positionRamePrecedente); //On calcule la distance entre la position actuelle du métro et sa position précédente.
 
-        double prochaineStationPos = getProchaineStationPosition(*this, stations);
-        double distanceProchaineStation = std::abs(prochaineStationPos - position);
+    if (!enArret) { //Si le métro n'est pas actuellement à l'arret 
+        double deplacement = (vitesse * elapsedTime.asSeconds()) / 4.0; //On calcume la distance parcourue pendant le temps 'elapsedTime'
+        bool doitSArreter = false; //On initialise une variable pour indiquer si le métro doit s'arreter
 
-        // Gérer la décélération avant d'arriver à la station
-        if (distanceProchaineStation <= SEUIL_DECÉLÉRATION && vitesse > EPSILON) {
-            vitesse = std::max(vitesseArret, vitesse - 0.1);
+        double prochaineStationPos = getProchaineStationPosition(*this, stations); //On obtient la position de la prochaine station
+        double distanceProchaineStation = std::abs(prochaineStationPos - position); //On calcule la distance entre la position actuelle du métro et la prochaine station
+
+        //On gère ici la décélération avant d'arriver à une station en ajustant la vitesse en fonction de la distance restante jusqu'à la prochaine station
+        if (distanceProchaineStation > 120 && !estEnProcessusDeDeceleration) {
+            vitesse = 1.4;
+            estEnProcessusDeDeceleration = true;
+            if (distanceProchaineStation > 140) {
+                vitesse = 0.9;
+                if (distanceProchaineStation > 170) {
+                    vitesse = 0.5;
+                }
+            }
+        }
+        estEnProcessusDeDeceleration = false;
+
+        //Si la distance de sécurité est activée et que la distance avec la position précédente est inférieure à la distance de sécurité 
+        if (activerDistanceSecurite && distanceAvecPrecedente < distanceSecurite) {
+            vitesse = std::max(0.0, vitesse - 0.5); //On réduit la vitesse pour maintenir la distance de sécurité.
         }
 
         if (activerDistanceSecurite && distanceAvecPrecedente < distanceSecurite) {
-            vitesse = std::max(0.0, vitesse - 0.5); // Ralentir si nécessaire
+            vitesse = std::max(0.0, vitesse - 0.5);
         }
 
-        // Déplacement du métro
-        if (directionPositive) {
+        //On effectue le déplacement normal du métro
+        if (directionPositive) { //Le déplacement se fait en fonction de la direction du métro (positive ou négative)
             position += deplacement;
-            if (position >= distanceEntreStations) {
+            if (position >= distanceEntreStations) { //Et on détermine si le métro doit s'arrêter à la station suivante
                 position = distanceEntreStations;
                 doitSArreter = true;
             }
@@ -75,61 +93,73 @@ void Metro::parcourirLigne(sf::Time elapsedTime, const std::vector<Station>& sta
             }
         }
 
-        // Arrêt à la station
+        //Si on détermine que le métro doit s'arreter et qu'il n'est pas déja à l'arret, on apelle alors la fonction 'arreterAStation' pour effectuer l'arret
         if (doitSArreter && !enArret) {
             arreterAStation();
         }
     }
 }
 
-// Arrêter le métro à une station
+//Cette méthode est initialiser pour faire arreter le métro à une station
 void Metro::arreterAStation() {
-    if (!enArret) {
-        vitesse = vitesseArret;
-        enArret = true;
-        stationClock.restart();
+    if (!enArret) { //On vérifie si le métro n'est pas déja à l'arret
+        vitesse = 0; //On met la vitesse à 0
+        enArret = true;     //On indique que le métro est à l'arret
+        stationClock.restart();    //On redémarre l'horloge de la station pour mesurer la durée de l'arret
 
-        // Simulation de l'arrêt à la station
-        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(dureeArret * 1000)));
-        std::cout << "Metro " << id << " s'arrête à la station." << std::endl;
+        //On calcule la durée d'arrêt ajustée en fonction des passagers qui montent et qui descendent
+        double tempsParPassager = 0.1;
+        double tempsArretAjuste = dureeArret + (passagersEntrants + passagersSortants) * tempsParPassager;
+
+        //On attent le temps d'arrêt qui a été ajusté (simulation)
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(tempsArretAjuste * 1000)));
+
+        //On affiche le temps passé à la station
+        std::cout << "Temps passé à la station : " << tempsArretAjuste << " secondes" << std::endl;
     }
 }
 
-// Gérer les passagers montant et descendant
+//Cette méthode permet de gérer les passagers qui montent et qui descendent
 void Metro::gererPassagers(int passagersQuai) {
-    // Facteur de variabilité basé sur l'ID du métro et une valeur aléatoire
+
+    //On initialise un facteur de variabilité qui est basé sur l'ID du métro et une valeur aléatoire
     int variabilite = (rand() % 20 + 1) * (id % 15);
 
-    // Calcul du nombre de passagers sortants avec variabilité
+    //On calcule le nombre de passagers sortants avec variabilité
     passagersSortants = std::min(nombrePassagers, rand() % (nombrePassagers + 1) + variabilite / 20);
 
-    // Calcul du nombre de passagers entrants avec variabilité
+    //On calcule le de passagers entrants avec variabilité
     passagersEntrants = std::min(capaciteMaximale - nombrePassagers, passagersQuai) + variabilite / 25;
 
-    // Mise à jour du nombre de passagers à bord
+    //On met à jour le nombre de passagers à bord
     nombrePassagers += passagersEntrants - passagersSortants;
 
-    // Assurer que le nombre de passagers reste dans les limites
+    //On vérifie que le nombre de passagers reste dans les limites
     if (nombrePassagers > capaciteMaximale) nombrePassagers = capaciteMaximale;
     if (nombrePassagers < 0) nombrePassagers = 0;
 }
 
-// Arrêt total du métro
+//Méthode pour l'arret total du métro
 void Metro::arretTotal() {
+    //On met le métro totalement à l'arret
     enArret = true;
     vitesse = vitesseArret;
     arretUrgence = true;
 }
 
-// Reprendre après un arrêt d'urgence
+//Méthode qui permet au métro de reprendre après un arrêt d'urgence
 void Metro::reprendreAprèsArretUrgence() {
+    //On vérifie si le métro est en arret d'urgence
     if (arretUrgence) {
+        //On remet en marche le métro après l'arret d'urgence
         enArret = false;
         accelerer(vitesseCroisiere);
         arretUrgence = false;
     }
 }
 
+
+//Les méthodes qui suivent sont implémentés pour nous permettre d'obtenir toutes les informations sur le métro et les passagers
 int Metro::getPassagersEntrants() const {
     return passagersEntrants;
 }
@@ -158,6 +188,8 @@ double Metro::getDureeArret() const {
     return dureeArret;
 }
 
+
+//Cette méthode nous permet de faire accélérer le métro avec une vitesse qui ne dépasse pas la vitesse de croisière
 void Metro::accelerer(double acceleration) {
     vitesse += acceleration;
     if (vitesse > vitesseCroisiere) {
@@ -165,8 +197,8 @@ void Metro::accelerer(double acceleration) {
     }
 }
 
+
+//Cette fonction de transition est utilisé dans le déplacement du métro
 double Metro::fonctionTransition(double t) const {
-    // Formule hypothétique de transition
     return 2 * t * t * t - 3 * t * t + 1;
 }
-

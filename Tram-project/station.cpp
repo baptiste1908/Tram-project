@@ -1,34 +1,32 @@
-
-
 #include "metro.hpp"
 #include "superviseur.hpp"
 #include "station.hpp"
 
 #include "bibliotheque.hpp"
 
-// Constructeur de la classe Station
+//Constructeur de la classe Station
 Station::Station(const std::string& nom, double position)
     : nom(nom), position(position), metroPresent(false) {
+    //On initialise les attributs de la station avec les valeurs que l'on a 
 }
 
-// Méthode pour signaler l'arrivée d'un métro à la station
+//Cette méthode est implémenter pour signaler l'arrivée d'un métro à la station
 void Station::signalerArriveeMetro() {
-    metroPresent = true;
+    metroPresent = true; //On met à jour l'indicateur de présence de métro à vrai
 }
 
-// Méthode pour signaler le départ d'un métro de la station
+//Cette méthode est implémenter pour signaler le départ d'un métro de la station
 void Station::signalerDepartMetro() {
-    metroPresent = false;
+    metroPresent = false; //On met à jour l'indicateur de présence de métro à faux
 }
 
-// Méthode pour vérifier si un métro est présent à la station
+//Cette méthode est implémenter pour vérifier si un métro est présent à la station
 bool Station::estMetroPresent() const {
-    return metroPresent;
+    return metroPresent; //On retourne l'état de l'indicateur de présence de métro
 }
 
-// Méthode pour simuler la gestion des passagers sur le quai
+//Cette méthode est implémenter pour simuler la gestion des passagers sur le quai
 int Station::gererPassagers() const {
-    // Génération d'un nombre aléatoire de passagers
-    // Cette simulation peut être ajustée en fonction des besoins spécifiques du scénario
-    return rand() % 150; // Nombre aléatoire de passagers entre 0 et 149
+    //On génère un nombre aléatoire de passagers
+    return rand() % 150; //On retourne un nombre aléatoire de passagers entre 0 et 149
 }

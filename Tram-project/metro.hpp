@@ -7,7 +7,7 @@
 
 #include "bibliotheque.hpp"
 
-class Superviseur; // Déclaration anticipée pour éviter les dépendances circulaires
+
 
 
 
