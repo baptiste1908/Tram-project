@@ -5,6 +5,7 @@ La vidéo étant trop grosse, voici le lien pour la lire : https://myjunia-my.sh
 
 Nous avons aussi mis les images dans un dossier images que vous devrez placer dans le dossier img de SFML ("C:/Program Files/SFML/img/")
 
+Nous vous avons également ajouter au référentiel en tant que collaborateur.
 Merci pour votre compréhension. 
 Bonne correction à vous. 
 
